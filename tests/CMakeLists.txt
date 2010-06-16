@@ -142,5 +142,13 @@ IF (BUILD_TESTING)
       DEPENDS main-test core-test task-test event-test taskcontext-test parser-test program-test state-test dev-test ${ORO_EXTRA_TESTS}
         WORKING_DIRECTORY "${RUNTIME_OUTPUT_DIRECTORY}")
 
+	# not automated test
+    ADD_EXECUTABLE( test-clocks test-clocks.cpp )
+    TARGET_LINK_LIBRARIES( test-clocks orocos-rtt-dynamic_${OROCOS_TARGET})
+    SET_TARGET_PROPERTIES( test-clocks PROPERTIES
+      COMPILE_FLAGS "${CMAKE_CXX_FLAGS_ADD}"
+      LINK_FLAGS "${CMAKE_LD_FLAGS_ADD}"
+      COMPILE_DEFINITIONS "${OROCOS-RTT_DEFINITIONS}" )
+
     #ADD_DEPENDENCIES(check prep-cpf)
 ENDIF()
