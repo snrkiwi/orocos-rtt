@@ -130,6 +130,17 @@ namespace RTT
         }
     }
 
+    Timer::Timer(TimeService* clock, TimerId max_timers, int scheduler, int priority)
+            : mTimeserv(clock), mThread(0), msem(0), mdo_quit(false)
+    {
+        assert(mTimeserv);
+        mtimers.resize(max_timers);
+        if (scheduler != -1) {
+            mThread = new OS::SingleThread(scheduler, priority, "Timer", this);
+            mThread->start();
+        }
+    }
+
     Timer::~Timer()
     {
         delete mThread;
