@@ -58,56 +58,77 @@ namespace RTT
     {
         // This code is executed from mThread's thread
         while (!mdo_quit) {
-            Time wake_up_time;
+            Time    wake_up_time;
             TimerId next_timer_id = 0;
+            bool    have_timer = false;
 
             // Select next timer.
             {// This scope is for OS::MutexLock.
                 // find wake_up_time
                 // check timers queue.
                 OS::MutexLock locker(m);
-                // We can't use infinite as the OS may internally use time_spec, which can not
-                // represent as much in the future (until 2038) // XXX Year-2038 Bug
-                wake_up_time = (TimeService::InfiniteNSecs/4)-1;
+                /// \todo InfiniteNSecs should probably be clock-specific
+                wake_up_time = TimeService::InfiniteNSecs;
                 for (TimerIds::iterator it = mtimers.begin(); it != mtimers.end(); ++it) {
-                    if ( it->first != 0 && it->first < wake_up_time  ) {
+                    if ( (it->first != 0) && (it->first < wake_up_time) ) {
                         wake_up_time = it->first;
                         next_timer_id = it - mtimers.begin();
+                        have_timer = true;
                     }
                 }
             }// OS::MutexLock
 
-            // Wait
-            int ret = 0;
-            if ( wake_up_time > mTimeserv->getNSecs() )
-                ret = msem.waitUntil( wake_up_time ); // case of no timers or running timers
-            else
-                ret = -1; // case of timer overrun.
-
-            // Timeout handling
-            if (ret == -1) {
-                // a timer expired
-                // First: reset/reprogram the timer that expired:
+            if (have_timer)
+            {
+                bool	did_timeout = false;
+                if ( wake_up_time > mTimeserv->getNSecs() )
                 {
-                    OS::MutexLock locker(m);
-                    // detect corner case for resize:
-                    if ( next_timer_id < int(mtimers.size()) ) {
-                        // now clear or reprogram it.
-                        TimerIds::iterator tim = mtimers.begin() + next_timer_id;
-                        if ( tim->second ) {
-                            // periodic timer
-                            tim->first += tim->second;
-                        } else {
-                            // aperiodic timer
-                            tim->first = 0;
-                        }
-                    }
+                    // now convert into wall clock time, as mTimeserv is not
+                    // guaranteed to be a wall clock!
+                    Time wake_up_time_wall = mTimeserv->toWallClock(wake_up_time);
+                    did_timeout = !msem.waitUntil( wake_up_time_wall );
                 }
-                // Second: send the timeout signal and allow (within the callback)
-                // to reprogram the timer.
-                // If we would first call timeout(), the code above would overwrite
-                // user settings.
-                timeout( next_timer_id );
+                else
+                {
+                    did_timeout = true;	// have passed the time!
+                }
+
+                // Timeout handling
+                if (did_timeout)
+                {
+                    // First: reset/reprogram the timer that expired:
+                    {
+                        OS::MutexLock locker(m);
+                        // detect corner case for resize:
+                        if ( next_timer_id < int(mtimers.size()) ) {
+                            // now clear or reprogram it.
+                            TimerIds::iterator tim = mtimers.begin() + next_timer_id;
+                            if ( tim->second ) {
+                                // periodic timer
+                                tim->first += tim->second;
+                            } else {
+                                // aperiodic timer
+                                tim->first = 0;
+                            }
+                        }
+                    }// OS::MutexLock
+
+                    // Second: send the timeout signal and allow (within the callback)
+                    // to reprogram the timer.
+                    // If we would first call timeout(), the code above would overwrite
+                    // user settings.
+                    timeout( next_timer_id );
+                }
+                // else we were interrupted, so go around again
+            }
+            else
+            {
+                // Sleep for an abritrary amount of time, to ease CPU burden.
+                // Any user activity on the timers will cause us to wake.
+                (void)msem.waitUntil( 
+                    /// \todo update when TimeService supports non-static getNSecs()
+                    nsecs_to_Seconds(RTT::TimeService::Instance()->getNSecs())
+                    + (60. * 60.));   // 1 hour
             }
         }
     }
