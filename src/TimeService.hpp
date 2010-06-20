@@ -93,7 +93,7 @@ namespace RTT
          *
          * @return current tick of the system clock
          */
-        ticks getTicks() const;
+        virtual ticks getTicks() const;
 
         /**
          * Get clicks passed since a certain moment
@@ -167,7 +167,7 @@ namespace RTT
          *
          * @return current nsecs of the system clock
          */
-        nsecs getNSecs() const;
+        virtual nsecs getNSecs() const;
 
         /**
          * Get nsecs passed since a certain moment
@@ -188,6 +188,22 @@ namespace RTT
          * Convert an amount of ticks to nano seconds
          */
         static nsecs ticks2nsecs( const ticks t );
+
+        /**
+         * Convert \a virtualTime to equivalent wall-clock time
+         *
+         * \remark In base RTT::TimeService implementation this is a no-op,
+         * but the function will be different in derived classes.
+         */
+        virtual nsecs toWallClock(const nsecs virtualTime) const;
+
+        /**
+         * Convert \a wallTime to equivalent virtual-clock time
+         *
+         * \remark In base RTT::TimeService implementation this is a no-op,
+         * but the function will be different in derived classes.
+         */
+        virtual nsecs fromWallClock(const nsecs wallTime) const;
 
         /**
          * The largest number representable in ticks.

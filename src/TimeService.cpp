@@ -43,6 +43,16 @@ namespace RTT
         return ticks2nano( t );
     }
 
+    TimeService::nsecs TimeService::toWallClock(const TimeService::nsecs virtualTime) const
+    {
+        return virtualTime; // no-op in base class
+    }
+
+    TimeService::nsecs TimeService::fromWallClock(const TimeService::nsecs wallTime) const
+    {
+        return wallTime; // no-op in base class
+    }
+
     TimeService* TimeService::Instance()
     {
         if ( _instance == 0 )
